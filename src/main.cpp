@@ -37,7 +37,7 @@ void onConnectionEstablished()
     });
 }
 
-int sensors[Max_number_of_sensors] = {D1, D2, D3, D4, D5, D6};
+int sensors[Max_number_of_sensors] = {D1, D2, D3, D4, D5, D6}; // D3 and D4 already pulled up
 bool sensors_activated[Max_number_of_sensors] = {0, 0, 0, 0, 0, 0};
 int Alarm_pin = D7;
 
@@ -133,6 +133,14 @@ void Configure()
   ESP.restart();
 }
 
+void Motion_Detection()
+{
+  for(int i = 0; i < nodeMCU.NumberOfSensors(); i++)
+  {
+    sensors_activated[i] = digitalRead(sensors[i]);
+  }
+}
+
 void setup() {
   Serial.begin(9600);
   pinMode(Alarm_pin, OUTPUT);
@@ -176,11 +184,23 @@ void setup() {
     Serial.println("Couldn't connect to WiFi");
   }
   
+  for(int i = 0; i < nodeMCU.NumberOfSensors(); i++)
+  {
+    if(i != 2 && i != 3)
+    {
+      pinMode(sensors[i], INPUT_PULLUP);
+    }
+    else
+    {
+      pinMode(sensors[i], INPUT);
+    }
+    
+    attachInterrupt(digitalPinToInterrupt(sensors[i]), Motion_Detection, RISING);
+  }
 
   local_Client.init();
   local_Client.subscribe(Sub_Topic);
   
-
 }
 
 int counter = 0;
