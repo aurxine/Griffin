@@ -204,7 +204,7 @@ void setup() {
   Serial.println(Pub_Topic);
   local_Client.init();
   global_Client.setOnConnectionEstablishedCallback(onConnectionEstablished);
-  
+  Serial.println(global_Client.isWifiConnected());
   local_Client.subscribe(Sub_Topic);
   //Serial.println(global_Client.subscribe(Sub_Topic, onMessageReceived));
   
@@ -217,7 +217,7 @@ void loop() {
   // {
   //   Serial.println(local_Client.Data);
   // }
-  //Serial.println(global_Client.isConnected());
+  Serial.println(global_Client.isConnected());
   global_Client.loop();
   delay(2000);
 
