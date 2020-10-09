@@ -17,9 +17,6 @@ setupDevice nodeMCU;
 
 MQTTBroker local_Client;
 
-String broker_url = "broker.hivemq.com";
-int broker_port = 1883;
-
 String Sub_Topic = "Sub/" + nodeMCU.ID();
 String Pub_Topic = "Pub/" + nodeMCU.ID();
 String payload_from_global;
@@ -36,6 +33,11 @@ void onConnectionEstablished()
         Serial.println(payload);
     });
 }
+void onMessageReceived(const String& topic, const String& message) {
+  Serial.println(topic + ": " + message);
+}
+
+
 
 int sensors[Max_number_of_sensors] = {D1, D2, D3, D4, D5, D6}; // D3 and D4 already pulled up
 bool sensors_activated[Max_number_of_sensors] = {0, 0, 0, 0, 0, 0};
@@ -133,7 +135,7 @@ void Configure()
   ESP.restart();
 }
 
-void Motion_Detection()
+void ICACHE_RAM_ATTR Motion_Detection()
 {
   for(int i = 0; i < nodeMCU.NumberOfSensors(); i++)
   {
@@ -198,8 +200,13 @@ void setup() {
     attachInterrupt(digitalPinToInterrupt(sensors[i]), Motion_Detection, RISING);
   }
 
+  Serial.println(Sub_Topic);
+  Serial.println(Pub_Topic);
   local_Client.init();
+  global_Client.setOnConnectionEstablishedCallback(onConnectionEstablished);
+  
   local_Client.subscribe(Sub_Topic);
+  //Serial.println(global_Client.subscribe(Sub_Topic, onMessageReceived));
   
 }
 
@@ -210,7 +217,8 @@ void loop() {
   // {
   //   Serial.println(local_Client.Data);
   // }
-  
+  //Serial.println(global_Client.isConnected());
+  global_Client.loop();
   delay(2000);
 
 }
