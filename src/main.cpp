@@ -176,7 +176,7 @@ void setup() {
     Serial.println("Couldn't connect to WiFi");
   }
   
-
+  nodeMCU.showAllData();
   local_Client.init();
   local_Client.subscribe(Sub_Topic);
   
