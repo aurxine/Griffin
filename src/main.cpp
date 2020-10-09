@@ -4,7 +4,8 @@
 #include "setupDevice.h"
 #include "setupDevice.cpp"
 #include "MQTTBroker.h"
-#include<EspMQTTClient.h>
+#include <PubSubClient.h>
+//#include<EspMQTTClient.h>
 #include<ArduinoJson.h>
 
 StaticJsonDocument<512> Configuration_Data;
@@ -22,21 +23,53 @@ String Pub_Topic = "Pub/" + nodeMCU.ID();
 String payload_from_global;
 String payload_from_local;
 
-EspMQTTClient global_Client("broker.hivemq.com", 1883);
+WiFiClient espWifi;
+PubSubClient global_Client(espWifi);
+unsigned long lastMsg = 0;
+#define MSG_BUFFER_SIZE	(50)
+char msg[MSG_BUFFER_SIZE];
+int value = 0;
 
-void onConnectionEstablished() 
-{
-  Serial.println("Connection Established");
-  Serial.print("Topic: "); Serial.println(Sub_Topic); 
-  global_Client.subscribe(Sub_Topic, [](const String &payload){ 
-        payload_from_global = payload;
-        Serial.println(payload);
-    });
-}
-void onMessageReceived(const String& topic, const String& message) {
-  Serial.println(topic + ": " + message);
+void callback(char* topic, byte* payload, unsigned int length) {
+  // Serial.print("Message arrived [");
+  // Serial.print(topic);
+  // Serial.print("] ");
+  payload_from_global = "";
+  for (int i = 0; i < (int)length; i++) {
+    payload_from_global += (char)payload[i];
+    //Serial.print((char)payload[i]);
+  }
+  Serial.println();
+
 }
 
+void reconnect() {
+  // Loop until we're reconnected
+  while (!global_Client.connected()) 
+  {
+    Serial.print("Attempting MQTT connection...");
+    // Create a random client ID
+    String global_ClientId = "ESP8266Client-";
+    global_ClientId += String(random(0xffff), HEX);
+    // Attempt to connect
+    if (global_Client.connect(global_ClientId.c_str())) 
+    {
+      Serial.println("connected");
+      // Once connected, publish an announcement...
+      global_Client.publish(Pub_Topic.c_str(), "hello world");
+      // ... and resubscribe
+      global_Client.subscribe(Sub_Topic.c_str());
+    } 
+    else 
+    {
+      Serial.print("failed, rc=");
+      Serial.print(global_Client.state());
+      Serial.println(" try again in 5 seconds");
+      // Wait 5 seconds before retrying
+      delay(5000);
+    }
+  }
+}
 
 
 int sensors[Max_number_of_sensors] = {D1, D2, D3, D4, D5, D6}; // D3 and D4 already pulled up
@@ -78,7 +111,7 @@ const char* ssid;
 const char* password;
 int number_of_sensors;
 int number_of_contacts;
-const char* msg;
+//const char* msg;
 
 void Configure()
 {
@@ -115,7 +148,7 @@ void Configure()
   number_of_contacts = Configuration_Data["Number_of_Contacts"];
   nodeMCU.getNumberOfContacts(number_of_contacts);
 
-  msg = Configuration_Data["Message"];
+  const char* msg = Configuration_Data["Message"];
   nodeMCU.getMessage(msg);
   delay(2000);
 
@@ -176,7 +209,7 @@ void setup() {
 
   nodeMCU.showAllData();
 
-  if(nodeMCU.connectToWiFi())
+  if(nodeMCU.connect())
   {
     Serial.println("WiFi Connected");
     nodeMCU.showLocalIP();
@@ -185,7 +218,9 @@ void setup() {
   {
     Serial.println("Couldn't connect to WiFi");
   }
-  
+
+
+  //Setting up sensors based on number of sensors
   for(int i = 0; i < nodeMCU.NumberOfSensors(); i++)
   {
     if(i != 2 && i != 3)
@@ -203,8 +238,9 @@ void setup() {
   Serial.println(Sub_Topic);
   Serial.println(Pub_Topic);
   local_Client.init();
-  global_Client.setOnConnectionEstablishedCallback(onConnectionEstablished);
-  
+  global_Client.setServer("broker.hivemq.com", 1883);
+  global_Client.setCallback(callback);
+
   local_Client.subscribe(Sub_Topic);
   //Serial.println(global_Client.subscribe(Sub_Topic, onMessageReceived));
   
@@ -217,7 +253,12 @@ void loop() {
   // {
   //   Serial.println(local_Client.Data);
   // }
-  //Serial.println(global_Client.isConnected());
+  if(!global_Client.connected())
+  {
+    reconnect();
+  }
+
+  Serial.println(payload_from_global);
   global_Client.loop();
   delay(2000);
 
