@@ -8,7 +8,7 @@
 //#include<EspMQTTClient.h>
 #include<ArduinoJson.h>
 
-StaticJsonDocument<512> Configuration_Data;
+StaticJsonDocument<512> MQTT_Data;
 
 
 #define Max_number_of_sensors 6
@@ -123,7 +123,7 @@ void Configure()
 
   delay(1000);
   Serial.println(local_Client.Data);
-  DeserializationError error = deserializeJson(Configuration_Data, local_Client.Data);
+  DeserializationError error = deserializeJson(MQTT_Data, local_Client.Data);
 
 // Test if parsing succeeds.
   if (error) 
@@ -133,28 +133,28 @@ void Configure()
     return;
   }
 
-  id = Configuration_Data["Device_ID"];
+  id = MQTT_Data["Device_ID"];
   nodeMCU.getID((String)id); 
 
-  ssid = Configuration_Data["SSID"];
+  ssid = MQTT_Data["SSID"];
   nodeMCU.get_STA_SSID((String)ssid);
   
-  password = Configuration_Data["Password"];
+  password = MQTT_Data["Password"];
   nodeMCU.get_STA_Password((String)password);
 
-  number_of_sensors = Configuration_Data["Number_of_Sensors"];
+  number_of_sensors = MQTT_Data["Number_of_Sensors"];
   nodeMCU.getNumberOfSensors(number_of_sensors);
 
-  number_of_contacts = Configuration_Data["Number_of_Contacts"];
+  number_of_contacts = MQTT_Data["Number_of_Contacts"];
   nodeMCU.getNumberOfContacts(number_of_contacts);
 
-  const char* msg = Configuration_Data["Message"];
+  const char* msg = MQTT_Data["Message"];
   nodeMCU.getMessage(msg);
   delay(2000);
 
   for(int i = 1; i <= number_of_contacts; i++)
   {
-    const char* contact = Configuration_Data["Contact_" + (String)i];
+    const char* contact = MQTT_Data["Contact_" + (String)i];
     nodeMCU.getContact((String)contact);
     Serial.println(contact);
     delay(500);
