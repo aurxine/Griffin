@@ -31,11 +31,13 @@ char msg[MSG_BUFFER_SIZE];
 int value = 0;
 
 void callback(char* topic, byte* payload, unsigned int length) {
-  Serial.print("Message arrived [");
-  Serial.print(topic);
-  Serial.print("] ");
-  for (int i = 0; i < length; i++) {
-    Serial.print((char)payload[i]);
+  // Serial.print("Message arrived [");
+  // Serial.print(topic);
+  // Serial.print("] ");
+  payload_from_global = "";
+  for (int i = 0; i < (int)length; i++) {
+    payload_from_global += (char)payload[i];
+    //Serial.print((char)payload[i]);
   }
   Serial.println();
 
@@ -236,7 +238,7 @@ void setup() {
   Serial.println(Sub_Topic);
   Serial.println(Pub_Topic);
   local_Client.init();
-  global_Client.setServer("mqtt://broker.hivemq.com", 1883);
+  global_Client.setServer("broker.hivemq.com", 1883);
   global_Client.setCallback(callback);
 
   local_Client.subscribe(Sub_Topic);
@@ -256,6 +258,7 @@ void loop() {
     reconnect();
   }
 
+  Serial.println(payload_from_global);
   global_Client.loop();
   delay(2000);
 
