@@ -23,6 +23,10 @@ String Pub_Topic = "Pub/" + nodeMCU.ID();
 String payload_from_global;
 String payload_from_local;
 
+unsigned long prev_config_count = 0; // for checking the new configuration data
+unsigned long prev_control_count = 0; // same as above
+//unsigned long status_count = 0; // I don't think I'll be using this
+
 WiFiClient espWifi;
 PubSubClient global_Client(espWifi);
 unsigned long lastMsg = 0;
@@ -37,7 +41,7 @@ void callback(char* topic, byte* payload, unsigned int length) {
   payload_from_global = "";
   for (int i = 0; i < (int)length; i++) {
     payload_from_global += (char)payload[i];
-    //Serial.print((char)payload[i]);
+    Serial.print((char)payload[i]);
   }
   Serial.println();
 
@@ -73,7 +77,8 @@ void reconnect() {
 
 
 int sensors[Max_number_of_sensors] = {D1, D2, D3, D4, D5, D6}; // D3 and D4 already pulled up
-bool sensors_activated[Max_number_of_sensors] = {0, 0, 0, 0, 0, 0};
+int sensors_activated[Max_number_of_sensors] = {0, 0, 0, 0, 0, 0};
+int sensors_locked[Max_number_of_sensors] = {0, 0, 0, 0, 0, 0};
 int Alarm_pin = D7;
 
 void SendMessage(String message, String number)
@@ -168,6 +173,92 @@ void Configure()
   ESP.restart();
 }
 
+
+bool analyzeIncomingData(String data)
+{
+  if(data.length() <= 0)
+  {
+    return false;
+  }
+  DeserializationError error = deserializeJson(MQTT_Data, data);
+
+// Test if parsing succeeds.
+  if (error) 
+  {
+    Serial.print(F("deserializeJson() failed: "));
+    Serial.println(error.c_str());
+  }
+
+  if(MQTT_Data["Command"] == "Configuration")
+  {
+    Serial.println("Configuring now");
+    Configure();
+  }
+
+  else if(MQTT_Data["Command"] == "Control")
+  {
+    if(prev_control_count < MQTT_Data["Count"])
+    {
+      
+      for(int i = 0; i < MQTT_Data["Number_of_Sensors"]; i++)
+      {
+        sensors_locked[i] = MQTT_Data["Sensors"][i];
+        Serial.print(sensors_locked[i]);
+        Serial.print(" ");
+      }
+      Serial.println();
+      prev_control_count = MQTT_Data["Count"];
+      return true;
+    }
+    return false;
+    
+  }
+  return false;
+}
+
+void sendSensorStatus()
+{
+  StaticJsonDocument<200> Sensor_Status;
+  const int capacity = 200;
+  Sensor_Status["Device_ID"] = nodeMCU.ID();
+  Sensor_Status["Count"] = 0;
+  Sensor_Status["Command"] = "Status";
+  Sensor_Status["Number_of_Sensors"] = nodeMCU.NumberOfSensors();
+  JsonArray Sensors = Sensor_Status.createNestedArray("Sensors");
+  for(int i = 0; i < nodeMCU.NumberOfSensors(); i++)
+  {
+    Sensors.add(sensors_activated[i]);
+    Serial.println(sensors_activated[i]);
+  }
+
+  char payload[capacity];
+  serializeJson(Sensor_Status, payload);
+
+  Serial.println();
+  serializeJsonPretty(Sensor_Status, Serial);
+
+  if(local_Client.publish(Pub_Topic, payload))
+  {
+    Serial.println("Publish to local broker successful!");
+  }
+  else
+  {
+    Serial.println("Publish to local broker unsuccessful!");
+  }
+
+  if(global_Client.publish(Pub_Topic.c_str(), payload))
+  {
+    Serial.println("Publish to global broker successful!");
+  }
+  else
+  {
+    Serial.println("Publish to global broker unsuccessful!");
+  }
+  
+  
+
+}
+
 void ICACHE_RAM_ATTR Motion_Detection()
 {
   for(int i = 0; i < nodeMCU.NumberOfSensors(); i++)
@@ -246,7 +337,6 @@ void setup() {
   
 }
 
-int counter = 0;
 
 void loop() {
   // if(local_Client.Data.length() > 0)
@@ -258,8 +348,16 @@ void loop() {
     reconnect();
   }
 
-  Serial.println(payload_from_global);
+  //Serial.println(payload_from_global);
+  if(!analyzeIncomingData(local_Client.Data))
+  {
+    if(!analyzeIncomingData(payload_from_global))
+    {
+      Serial.println("No new data received");
+    }
+  }
+  sendSensorStatus();
   global_Client.loop();
-  delay(2000);
+  delay(4000);
 
 }
