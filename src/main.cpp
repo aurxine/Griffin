@@ -80,6 +80,7 @@ int sensors[Max_number_of_sensors] = {D1, D2, D3, D4, D5, D6}; // D3 and D4 alre
 int sensors_activated[Max_number_of_sensors] = {0, 0, 0, 0, 0, 0};
 int sensors_locked[Max_number_of_sensors] = {0, 0, 0, 0, 0, 0};
 int Alarm_pin = D7;
+bool ringAlarm = false;
 
 void SendMessage(String message, String number)
 {
@@ -265,6 +266,7 @@ void ICACHE_RAM_ATTR Motion_Detection()
   {
     sensors_activated[i] = digitalRead(sensors[i]);
   }
+  ringAlarm = true;
 }
 
 void setup() {
@@ -309,7 +311,6 @@ void setup() {
   {
     Serial.println("Couldn't connect to WiFi");
   }
-
 
   //Setting up sensors based on number of sensors
   for(int i = 0; i < nodeMCU.NumberOfSensors(); i++)
@@ -357,6 +358,14 @@ void loop() {
     }
   }
   sendSensorStatus();
+  if(ringAlarm)
+  {
+    Serial.println("Alarm On");
+    digitalWrite(Alarm_pin, HIGH);
+    delay(5000);
+    digitalWrite(Alarm_pin, LOW);
+    ringAlarm = false;
+  }
   global_Client.loop();
   delay(4000);
 
