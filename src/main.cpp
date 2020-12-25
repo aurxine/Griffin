@@ -2,7 +2,7 @@
 #include "nodeMCUpins.h"
 #include<ESP8266WiFi.h>
 #include "setupDevice.h"
-#include "setupDevice.cpp"
+//#include "setupDevice.cpp"
 #include "MQTTBroker.h"
 #include <PubSubClient.h>
 //#include<EspMQTTClient.h>
